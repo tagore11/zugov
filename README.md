@@ -53,43 +53,158 @@ The Grounding Engine is designed as *AI as interface* — Vitalik Buterin's Jan 
 
 ## Architecture
 
-```
-INPUT
-  └── Any proposal (free text)
-       │
-       ▼
-GROUNDING ENGINE
-  ├── Fixed 6-question template
-  ├── LLM produces structured HTML report
-  ├── Output: epistemic report (never pass/fail)
-  └── Runtime: API (V0) → Local open-weight LLM (V1)
-       │
-       ▼
-DELIBERATION LAYER
-  ├── Pol.is session (opinion clustering)
-  ├── Daily Agora (45-min structured discussion)
-  └── Report must be read before deliberation begins
-       │
-       ▼
-MACI VOTE
-  ├── ZK-verified vote privacy
-  ├── Bribery-resistant (changeable until close)
-  └── On-chain verifiable result + ZK proof published
+```mermaid
+flowchart TD
+    A([📝 Proposal\nfree text, any member]) --> B
+
+    subgraph GE["🔍 Grounding Engine"]
+        B[Fixed 6-question template] --> C{RAG lookup\ngovernance dataset}
+        C -->|match found| D[Cite real precedent]
+        C -->|no match| E[Explicit: 'No verified\nprecedent found']
+        D & E --> F[Structured HTML report\nnever pass/fail]
+    end
+
+    F --> G
+
+    subgraph DL["💬 Deliberation Layer"]
+        G[Pol.is session\nopinion clustering] --> H[Daily Agora\n45-min structured discussion]
+        H --> I{Blocking\nobjection?}
+        I -->|yes| H
+        I -->|no| J[Consensus reached]
+    end
+
+    J --> K
+
+    subgraph MV["🗳️ MACI Vote"]
+        K[Vote opens\n48 hours] --> L[ZK proof generated]
+        L --> M[On-chain result\npublicly verifiable]
+    end
+
+    style GE fill:#1a2820,stroke:#00b4a0,color:#e8e4dc
+    style DL fill:#1a1f28,stroke:#c9982a,color:#e8e4dc
+    style MV fill:#1f1a28,stroke:#9b6fd4,color:#e8e4dc
 ```
 
 ---
 
 ## Decision Cycle
 
+```mermaid
+gantt
+    title ZuGov Decision Cycle (7 days)
+    dateFormat  D
+    axisFormat Day %d
+
+    section Epistemic
+    Proposal submitted           :milestone, m1, 0, 0d
+    Grounding Engine report      :active, ge, 1, 1d
+    Report accessible to all     :done, ra, 1, 6d
+
+    section Deliberation
+    Pol.is session open          :pol, 2, 2d
+    Daily Agora #1               :a1, 3, 1d
+    Daily Agora #2 (if needed)   :a2, 4, 1d
+
+    section Vote
+    MACI vote open               :crit, vote, 5, 2d
+    Vote closes + ZK proof       :milestone, m2, 7, 0d
 ```
-Day 0   Proposal submitted (any member)
-Day 1   Grounding Engine report published — accessible to all
-Day 2   Pol.is session opens
-Day 3   Daily Agora — 45-min structured deliberation
-Day 4   Second Agora (if needed) + consensus check
-Day 5   MACI vote opens (48 hours)
-Day 7   Vote closes, ZK proof published, decision recorded
+
+---
+
+## Base Rate Integrity — The Hallucination Problem
+
+Question 2 of the Grounding Engine asks for historical base rates: *"What is the historical pattern for decisions like this?"*
+
+This is the highest-risk question in the template. An LLM without external grounding will hallucinate plausible-sounding precedents. A fabricated base rate cited with confidence is worse than no base rate at all — it poisons the deliberation with false authority.
+
+ZuGov addresses this at three levels:
+
+### V0 — Explicit Uncertainty
+
+The system prompt contains a hard constraint:
+
+> *"If you do not have verified data on historical precedents, say so explicitly: 'No verified precedent found in available data. The following is a reasoning-based estimate, not an empirical finding.' Never present an inferred base rate as an empirical one."*
+
+This does not eliminate hallucination. It makes hallucination visible. A fabricated answer labeled as a reasoning estimate is still useful for deliberation framing; a fabricated answer labeled as fact is dangerous.
+
+### V1 — RAG over Governance Dataset
+
+```mermaid
+flowchart LR
+    Q2[Question 2:\nHistorical base rate] --> R[RAG retrieval]
+
+    subgraph DS["Governance Dataset"]
+        direction TB
+        D1[Gitcoin Grants rounds\n~4,000 decisions]
+        D2[Snapshot DAO votes\n~500K decisions]
+        D3[ZuKaş decisions\nlive, growing]
+        D4[Pol.is session outcomes\narchived]
+    end
+
+    R --> DS
+    DS -->|k-nearest matches| S[Cited, linkable precedents]
+    DS -->|no match above threshold| U["'No verified precedent'\nexplicit fallback"]
+    S & U --> F[Report section 2]
+
+    style DS fill:#1a2820,stroke:#00b4a0,color:#e8e4dc
 ```
+
+Target dataset for V1:
+- **Snapshot archive** — ~500K DAO votes with metadata (passed/failed, participation rate, outcome)
+- **Gitcoin Grants** — funding round decisions, reviewer reasoning
+- **ZuKaş decisions** — every decision cycle documented and indexed (this is what ZuKaş produces)
+- **Pol.is session archives** — bridging statements and consensus patterns
+
+Every community that deploys ZuGov and documents their decisions contributes to this dataset. The dataset is the long-term moat — and it is a commons, not a proprietary asset.
+
+### V2 — Verified Citation Links
+
+Every base rate claim links to a specific, publicly accessible decision record. Not "similar DAOs have done X" but "Gitcoin Round 18, Proposal #4421 resolved this identically — [link]." The community can verify the citation before the Agora begins.
+
+This is the difference between epistemic assistance and epistemic authority. ZuGov aims for the former. Verified citations are the technical mechanism that enforces the distinction.
+
+---
+
+## ZK Proof Verification
+
+MACI produces a ZK proof for every vote. The claim: "this vote result is correct, and no individual vote was revealed." How does a non-technical community member verify this claim?
+
+### V0 — Manual Verification
+
+After every MACI vote, ZuGov publishes:
+1. The final tally
+2. The ZK proof file (`proof.json`)
+3. A verification link: paste `proof.json` into a public verifier
+
+```
+Verification steps (non-technical):
+1. Download proof.json from the ZuGov vote page
+2. Go to: https://maci.pse.dev/verify  (or self-hosted verifier)
+3. Upload proof.json
+4. Verifier returns: ✓ Valid proof — tally matches
+```
+
+The critical point: **the verification step requires no trust in ZuGov**. A community member who suspects the tally was manipulated can verify independently, without asking ZuGov for anything.
+
+### V1 — In-App Verification
+
+```mermaid
+sequenceDiagram
+    participant CM as Community Member
+    participant ZG as ZuGov App
+    participant Chain as Ethereum
+
+    CM->>ZG: "Show me the vote result"
+    ZG->>CM: Tally + proof.json + contract address
+    CM->>Chain: Call verifyProof(proof.json)
+    Chain-->>CM: ✓ true (proof valid, tally correct)
+    Note over CM: No trust in ZuGov required
+```
+
+The verifier is a read-only Ethereum contract call. It does not require gas. It does not require a wallet. It requires only a public RPC endpoint — which any community member can call independently.
+
+**Why this matters for legitimacy:** A governance system that says "trust us, the vote was fair" is not a governance system. It is a trust request. ZuGov's legitimacy claim rests on the verifiability of the proof — not on the reputation of the operator.
 
 ---
 
