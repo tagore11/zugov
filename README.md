@@ -49,6 +49,32 @@ ZuGov does not replace human judgment. It makes collective reasoning visible bef
 
 The Grounding Engine is designed as *AI as interface* — Vitalik Buterin's Jan 2024 taxonomy of safe crypto+AI applications. Not *AI as rules* (dangerous: adversarial optimization). Not *AI as player* (no decision authority). A structured report that communities reason against, not a verdict they accept.
 
+### Delegated Episteme vs. Delegated Reasoning
+
+In February 2026, Vitalik proposed "delegated reasoning": personal AI agents trained on a user's values, handling routine DAO votes on their behalf — solving the individual participation bandwidth problem ([source](https://www.coindesk.com/web3/2026/02/21/ethereum-s-vitalik-buterin-proposes-ai-stewards-to-help-reinvent-dao-governance)).
+
+ZuGov operates at a different level: **delegated episteme** — institutional AI that raises the quality of the *proposal* before any individual engages with it. Not "my AI votes for me" but "before any of us vote, an AI audits what we're being asked to decide."
+
+These are complementary, not competing:
+- Vitalik's agents → individual/participation layer
+- ZuGov's Grounding Engine → institutional/proposal layer
+
+A personal AI agent that reads a ZuGov Grounding Engine report before casting a vote is the natural integration of both approaches.
+
+In March 2026, Vitalik also argued for a shift from hard binding governance mechanisms toward consensus-finding tools — surfacing broadly supported positions without enforcing them ([source](https://www.cryptotimes.io/2026/03/09/vitalik-warns-of-authoritarian-wave-calls-for-rethinking-crypto-governance/)). The Grounding Engine's zero-veto, zero-vote design is precisely this: a consensus-surface layer, not a decision layer.
+
+### Progressive Decentralization of the AI Layer
+
+The Grounding Engine's AI layer follows a staged decentralization roadmap — framed not as a feature but as a security commitment:
+
+| Phase | Timeline | AI Layer | Trust Model |
+|-------|----------|----------|-------------|
+| Phase 1 | 0–6 months | Hosted LLM (GPT-4o / Claude) | Centralized — known risk, declared |
+| Phase 2 | 7–14 months | Open-weights model, self-hosted nodes | Operator-distributed |
+| Phase 3 | 15–26 months | zkML inference, on-chain verifiable | Trustless |
+
+Phase 1's hosted LLM is a single point of failure — both technical and political. This is acknowledged explicitly. Communities deploying ZuGov in Phase 1 should understand this constraint. The roadmap exists because the constraint is unacceptable long-term, not as a marketing timeline.
+
 ---
 
 ## Architecture
@@ -215,8 +241,10 @@ Honest systems declare their weaknesses. ZuGov's known trust assumptions:
 | Not Guaranteed | Why | Mitigation |
 |----------------|-----|------------|
 | Grounding Engine is always correct | LLM output can be wrong | Community can formally challenge any finding |
+| Hosted LLM is censorship-resistant | Phase 1 uses centralized API — single political and technical failure point | Progressive decentralization roadmap: Phase 2 open-weights, Phase 3 zkML |
 | MACI coordinator is honest | Known MACI weakness | Threshold MACI in V1 removes single coordinator |
 | Sybil-proof identity | ZK alone is insufficient | Pluralistic identity: Humanode + ZK + social graph |
+| Humanode availability | External dependency — if Humanode goes down, identity layer fails | Fallback identity mechanism documented in V1 roadmap |
 | Perfect facilitation | Human error | Backup facilitator + session documentation |
 
 ---
